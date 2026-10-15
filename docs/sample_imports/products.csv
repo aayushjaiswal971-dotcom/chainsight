@@ -1,0 +1,11 @@
+sku,name,category,unit,unit_cost,reorder_level,daily_usage
+SKU-EL-001,Industrial Relay 24V,Electronics,pcs,1250.00,50,3.5
+SKU-EL-002,Servo Motor 0.5Nm,Electronics,pcs,4500.00,20,1.2
+SKU-HW-001,Steel Bolt M8x50,Hardware,box,85.50,500,28.0
+SKU-HW-002,Hex Nut M8,Hardware,box,42.00,800,35.0
+SKU-HW-003,Spring Washer M10,Hardware,pack,120.00,300,15.0
+SKU-CH-001,Hydraulic Fluid ISO46,Chemicals,litre,380.00,200,8.5
+SKU-CH-002,Cutting Oil EP,Chemicals,litre,295.00,150,6.2
+SKU-PK-001,Corrugated Box L,Packaging,pcs,18.00,2000,75.0
+SKU-PK-002,Stretch Film 500m,Packaging,roll,220.00,100,4.0
+SKU-SY-001,Safety Gloves Nitrile,Safety,pair,65.00,1000,42.5

@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'IBM Plex Mono', Menlo, Monaco, Consolas, monospace;
+
+    /* Backgrounds & Surfaces (Light) */
+    --bg-app: #F6F7F9;
+    --bg-surface: #FFFFFF;
+    --bg-raised: #FFFFFF;
+    --bg-subtle: #F1F3F5;
+    --bg-hover: #F8FAFC;
+    --bg-active: #EDF2F7;
+
+    /* Borders (Light) */
+    --border-color: #E3E6EB;
+    --border-light: #ECEEF2;
+    --border-dark: #CBD5E1;
+
+    /* Text (Light) */
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+    --text-subtle: #94A3B8;
+
+    /* Single Accent (Light: Deep Ink-Blue) */
+    --accent: #0F4C81;
+    --accent-hover: #0B3A63;
+    --accent-subtle: #EFF6FC;
+    --accent-border: #BFDBFE;
+    --accent-text-contrast: #FFFFFF;
+
+    /* Status Muted System (Light) */
+    --status-green-bg: #F0FDF4;
+    --status-green-text: #166534;
+    --status-green-border: #BBF7D0;
+    --status-green-dot: #16A34A;
+
+    --status-amber-bg: #FFFBEB;
+    --status-amber-text: #92400E;
+    --status-amber-border: #FDE68A;
+    --status-amber-dot: #D97706;
+
+    --status-red-bg: #FEF2F2;
+    --status-red-text: #991B1B;
+    --status-red-border: #FECACA;
+    --status-red-dot: #DC2626;
+
+    --status-gray-bg: #F8FAFC;
+    --status-gray-text: #475569;
+    --status-gray-border: #E2E8F0;
+    --status-gray-dot: #64748B;
+
+    --status-blue-bg: #F0F9FF;
+    --status-blue-text: #075985;
+    --status-blue-border: #BAE6FD;
+    --status-blue-dot: #0284C7;
+
+    /* Chart specific */
+    --chart-bar-primary: #0F4C81;
+    --chart-bar-secondary: #94A3B8;
+    --chart-grid: #ECEEF2;
+    --chart-axis: #94A3B8;
+    --chart-tooltip-bg: #FFFFFF;
+    --chart-tooltip-border: #CBD5E1;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    /* Backgrounds & Surfaces (Dark: Slate/neutral, not pure black, not blue-heavy) */
+    --bg-app: #0F1216;
+    --bg-surface: #161A20;
+    --bg-raised: #1C2128;
+    --bg-subtle: #1F242C;
+    --bg-hover: #1E232B;
+    --bg-active: #252B35;
+
+    /* Borders (Dark) */
+    --border-color: #2A313A;
+    --border-light: #202630;
+    --border-dark: #374151;
+
+    /* Text (Dark) */
+    --text-main: #E6E9ED;
+    --text-muted: #9AA4B0;
+    --text-subtle: #6B7580;
+
+    /* Single Accent (Dark: Contrast-passing tint) */
+    --accent: #38A3E5;
+    --accent-hover: #60A5FA;
+    --accent-subtle: #172635;
+    --accent-border: #1E3A5F;
+    --accent-text-contrast: #0F1216;
+
+    /* Status Muted System (Dark with WCAG AA contrast) */
+    --status-green-bg: rgba(74, 222, 128, 0.12);
+    --status-green-text: #4ADE80;
+    --status-green-border: rgba(74, 222, 128, 0.28);
+    --status-green-dot: #22C55E;
+
+    --status-amber-bg: rgba(251, 191, 36, 0.12);
+    --status-amber-text: #FBBF24;
+    --status-amber-border: rgba(251, 191, 36, 0.28);
+    --status-amber-dot: #F59E0B;
+
+    --status-red-bg: rgba(248, 113, 113, 0.12);
+    --status-red-text: #F87171;
+    --status-red-border: rgba(248, 113, 113, 0.28);
+    --status-red-dot: #EF4444;
+
+    --status-gray-bg: rgba(148, 163, 184, 0.12);
+    --status-gray-text: #CBD5E1;
+    --status-gray-border: rgba(148, 163, 184, 0.22);
+    --status-gray-dot: #94A3B8;
+
+    --status-blue-bg: rgba(56, 189, 248, 0.12);
+    --status-blue-text: #38BDF8;
+    --status-blue-border: rgba(56, 189, 248, 0.28);
+    --status-blue-dot: #38BDF8;
+
+    /* Chart specific (Dark) */
+    --chart-bar-primary: #38A3E5;
+    --chart-bar-secondary: #6B7580;
+    --chart-grid: #202630;
+    --chart-axis: #6B7580;
+    --chart-tooltip-bg: #1C2128;
+    --chart-tooltip-border: #2A313A;
+  }
+
+  body {
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Tabular Numerals & Monospace Elements */
+.font-mono,
+.tabular-nums,
+code,
+pre,
+.sku-cell,
+.id-cell,
+.number-cell,
+.timestamp-cell {
+  font-family: var(--font-mono) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom Thin Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-app);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+/* Focus styles */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* 120ms subtle transition on background and color only (none on first paint) */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 120ms ease-in-out, border-color 120ms ease-in-out, color 120ms ease-in-out !important;
+}
