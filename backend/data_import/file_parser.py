@@ -30,8 +30,14 @@ def _sanitize_cell(value: str, max_len: int = 500) -> str:
     value = value.strip()[:max_len]
     # Neutralize formula injection
     if value and value[0] in FORMULA_LEADERS:
-        value = "'" + value
+        if value[0] == '-' and re.match(r'^-\d+(\.\d+)?$', value):
+            pass
+        else:
+            value = "'" + value
     return value
+
+
+sanitize_cell = _sanitize_cell
 
 
 def validate_file_extension(filename: str) -> str:

@@ -44,14 +44,16 @@ class Command(BaseCommand):
 
         # ── 2. Warehouses ─────────────────────────────────────────────────────
         warehouses_data = [
-            {'name': 'Delhi North DC', 'location': 'Narela, Delhi'},
-            {'name': 'Mumbai West Hub', 'location': 'Bhiwandi, Mumbai'},
-            {'name': 'Bengaluru Central', 'location': 'Peenya, Bengaluru'},
+            {'code': 'DEL-01', 'name': 'Delhi North DC', 'location': 'Narela, Delhi', 'city': 'Delhi', 'state': 'Delhi', 'is_demo': True},
+            {'code': 'MUM-01', 'name': 'Mumbai West Hub', 'location': 'Bhiwandi, Mumbai', 'city': 'Mumbai', 'state': 'Maharashtra', 'is_demo': True},
+            {'code': 'BLR-01', 'name': 'Bengaluru Central', 'location': 'Peenya, Bengaluru', 'city': 'Bengaluru', 'state': 'Karnataka', 'is_demo': True},
         ]
         wh_ids = []
+        wh_codes = ['DEL-01', 'MUM-01', 'BLR-01']
         for wh in warehouses_data:
             existing = db.warehouses.find_one({'name': wh['name']})
             if existing:
+                db.warehouses.update_one({'_id': existing['_id']}, {'$set': {'code': wh['code'], 'is_demo': True, 'city': wh['city'], 'state': wh['state']}})
                 wh_ids.append(existing['_id'])
             else:
                 r = db.warehouses.insert_one({**wh, 'created_at': now})
@@ -102,9 +104,10 @@ class Command(BaseCommand):
         for prod in products_data:
             existing = db.products.find_one({'sku': prod['sku']})
             if existing:
+                db.products.update_one({'_id': existing['_id']}, {'$set': {**prod, 'is_demo': True, 'updated_at': now}})
                 prod_ids[prod['sku']] = existing['_id']
             else:
-                r = db.products.insert_one({**prod, 'created_at': now})
+                r = db.products.insert_one({**prod, 'is_demo': True, 'created_at': now})
                 prod_ids[prod['sku']] = r.inserted_id
         self.stdout.write('[OK] Products created')
 
@@ -148,11 +151,16 @@ class Command(BaseCommand):
             pid = str(prod_ids[sku])
             wid = str(wh_ids[wh_idx])
             existing = db.stock.find_one({'product_id': pid, 'warehouse_id': wid})
-            if not existing:
+            if existing:
+                db.stock.update_one({'_id': existing['_id']}, {'$set': {'quantity': qty, 'sku': sku, 'warehouse_code': wh_codes[wh_idx], 'is_demo': True, 'updated_at': now}})
+            else:
                 db.stock.insert_one({
                     'product_id': pid,
                     'warehouse_id': wid,
+                    'sku': sku,
+                    'warehouse_code': wh_codes[wh_idx],
                     'quantity': qty,
+                    'is_demo': True,
                     'created_at': now,
                     'updated_at': now,
                 })
@@ -160,18 +168,24 @@ class Command(BaseCommand):
 
         # ── 5. Shipments (10 total, 3 delayed) ───────────────────────────────
         def make_items(sku_qty_list):
-            return [{'product_id': str(prod_ids[sku]), 'quantity': qty} for sku, qty in sku_qty_list]
+            return [{'product_id': str(prod_ids[sku]), 'sku': sku, 'quantity': qty} for sku, qty in sku_qty_list]
 
         shipments_data = [
             # 3 DELAYED — will cause stockouts
             {
+                'shipment_id': 'SHP-DEMO-001',
                 'supplier': 'Alpha Electronics Pvt Ltd',
+                'carrier': 'Blue Dart Express',
                 'origin': 'Shenzhen, China',
+                'destination_warehouse_code': 'DEL-01',
                 'destination_warehouse_id': str(wh_ids[0]),
                 'items': make_items([('ELE-006', 300), ('ELE-002', 100)]),
                 'eta': (now + timedelta(days=2)).strftime('%Y-%m-%d'),
+                'original_eta': (now - timedelta(days=5)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=2)).strftime('%Y-%m-%d'),
                 'status': 'delayed',
                 'delay_days': 7,
+                'is_demo': True,
                 'created_at': now - timedelta(days=10),
                 'tracking_events': [
                     {'location': 'Shanghai Port', 'status': 'in_transit', 'note': 'Shipment loaded', 'delay_days': 0, 'timestamp': (now - timedelta(days=10)).isoformat()},
@@ -179,13 +193,19 @@ class Command(BaseCommand):
                 ],
             },
             {
+                'shipment_id': 'SHP-DEMO-002',
                 'supplier': 'OfficeMax Supplies',
+                'carrier': 'Delhivery Freight',
                 'origin': 'Pune, India',
+                'destination_warehouse_code': 'DEL-01',
                 'destination_warehouse_id': str(wh_ids[0]),
                 'items': make_items([('OFF-005', 500), ('OFF-001', 1000)]),
                 'eta': (now + timedelta(days=1)).strftime('%Y-%m-%d'),
+                'original_eta': (now - timedelta(days=4)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=1)).strftime('%Y-%m-%d'),
                 'status': 'delayed',
                 'delay_days': 5,
+                'is_demo': True,
                 'created_at': now - timedelta(days=8),
                 'tracking_events': [
                     {'location': 'Pune Depot', 'status': 'ordered', 'note': 'Order confirmed', 'delay_days': 0, 'timestamp': (now - timedelta(days=8)).isoformat()},
@@ -193,13 +213,19 @@ class Command(BaseCommand):
                 ],
             },
             {
+                'shipment_id': 'SHP-DEMO-003',
                 'supplier': 'SafeGuard Industries',
+                'carrier': 'Gati-KWE',
                 'origin': 'Surat, India',
+                'destination_warehouse_code': 'DEL-01',
                 'destination_warehouse_id': str(wh_ids[0]),
                 'items': make_items([('SAF-004', 100), ('CLN-003', 400), ('PKG-004', 200)]),
                 'eta': (now + timedelta(days=3)).strftime('%Y-%m-%d'),
+                'original_eta': (now - timedelta(days=5)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=3)).strftime('%Y-%m-%d'),
                 'status': 'delayed',
                 'delay_days': 8,
+                'is_demo': True,
                 'created_at': now - timedelta(days=12),
                 'tracking_events': [
                     {'location': 'Surat Factory', 'status': 'ordered', 'note': 'Production complete, awaiting dispatch', 'delay_days': 0, 'timestamp': (now - timedelta(days=12)).isoformat()},
@@ -209,52 +235,76 @@ class Command(BaseCommand):
             },
             # 4 normal in-transit
             {
+                'shipment_id': 'SHP-DEMO-004',
                 'supplier': 'TechParts Global',
+                'carrier': 'DHL Supply Chain',
                 'origin': 'Hyderabad, India',
+                'destination_warehouse_code': 'MUM-01',
                 'destination_warehouse_id': str(wh_ids[1]),
                 'items': make_items([('ELE-003', 200), ('ELE-004', 150)]),
                 'eta': (now + timedelta(days=5)).strftime('%Y-%m-%d'),
+                'original_eta': (now + timedelta(days=5)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=5)).strftime('%Y-%m-%d'),
                 'status': 'in_transit',
                 'delay_days': 0,
+                'is_demo': True,
                 'created_at': now - timedelta(days=3),
                 'tracking_events': [
                     {'location': 'Hyderabad Depot', 'status': 'in_transit', 'note': 'Departed on schedule', 'delay_days': 0, 'timestamp': (now - timedelta(days=3)).isoformat()},
                 ],
             },
             {
+                'shipment_id': 'SHP-DEMO-005',
                 'supplier': 'PackRight Solutions',
+                'carrier': 'TCI Express',
                 'origin': 'Silvassa, India',
+                'destination_warehouse_code': 'BLR-01',
                 'destination_warehouse_id': str(wh_ids[2]),
                 'items': make_items([('PKG-002', 2000), ('PKG-003', 500)]),
                 'eta': (now + timedelta(days=4)).strftime('%Y-%m-%d'),
+                'original_eta': (now + timedelta(days=4)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=4)).strftime('%Y-%m-%d'),
                 'status': 'in_transit',
                 'delay_days': 0,
+                'is_demo': True,
                 'created_at': now - timedelta(days=2),
                 'tracking_events': [
                     {'location': 'Silvassa Plant', 'status': 'in_transit', 'note': 'Loaded and dispatched', 'delay_days': 0, 'timestamp': (now - timedelta(days=2)).isoformat()},
                 ],
             },
             {
+                'shipment_id': 'SHP-DEMO-006',
                 'supplier': 'CleanPro Distributors',
+                'carrier': 'Safexpress',
                 'origin': 'Kolkata, India',
+                'destination_warehouse_code': 'BLR-01',
                 'destination_warehouse_id': str(wh_ids[2]),
                 'items': make_items([('CLN-001', 200), ('CLN-002', 50)]),
                 'eta': (now + timedelta(days=7)).strftime('%Y-%m-%d'),
+                'original_eta': (now + timedelta(days=7)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=7)).strftime('%Y-%m-%d'),
                 'status': 'in_transit',
                 'delay_days': 0,
+                'is_demo': True,
                 'created_at': now - timedelta(days=1),
                 'tracking_events': [
                     {'location': 'Kolkata Hub', 'status': 'in_transit', 'note': 'En route to Bengaluru', 'delay_days': 0, 'timestamp': (now - timedelta(days=1)).isoformat()},
                 ],
             },
             {
+                'shipment_id': 'SHP-DEMO-007',
                 'supplier': 'ToolTech India',
+                'carrier': 'V-Trans Logistics',
                 'origin': 'Chennai, India',
+                'destination_warehouse_code': 'MUM-01',
                 'destination_warehouse_id': str(wh_ids[1]),
                 'items': make_items([('TLS-001', 80), ('TLS-002', 300), ('TLS-003', 30)]),
                 'eta': (now + timedelta(days=6)).strftime('%Y-%m-%d'),
+                'original_eta': (now + timedelta(days=6)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=6)).strftime('%Y-%m-%d'),
                 'status': 'in_transit',
                 'delay_days': 0,
+                'is_demo': True,
                 'created_at': now - timedelta(days=4),
                 'tracking_events': [
                     {'location': 'Chennai Port', 'status': 'in_transit', 'note': 'Collected by logistics partner', 'delay_days': 0, 'timestamp': (now - timedelta(days=4)).isoformat()},
@@ -262,35 +312,53 @@ class Command(BaseCommand):
             },
             # 3 ordered (not yet shipped)
             {
+                'shipment_id': 'SHP-DEMO-008',
                 'supplier': 'Global Safety Co',
+                'carrier': 'Maersk Line',
                 'origin': 'China',
+                'destination_warehouse_code': 'BLR-01',
                 'destination_warehouse_id': str(wh_ids[2]),
                 'items': make_items([('SAF-001', 500), ('SAF-003', 200)]),
                 'eta': (now + timedelta(days=14)).strftime('%Y-%m-%d'),
+                'original_eta': (now + timedelta(days=14)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=14)).strftime('%Y-%m-%d'),
                 'status': 'ordered',
                 'delay_days': 0,
+                'is_demo': True,
                 'created_at': now - timedelta(hours=12),
                 'tracking_events': [],
             },
             {
+                'shipment_id': 'SHP-DEMO-009',
                 'supplier': 'ElecSource Ltd',
+                'carrier': 'Evergreen Marine',
                 'origin': 'Taiwan',
+                'destination_warehouse_code': 'DEL-01',
                 'destination_warehouse_id': str(wh_ids[0]),
                 'items': make_items([('ELE-001', 500), ('ELE-005', 800)]),
                 'eta': (now + timedelta(days=18)).strftime('%Y-%m-%d'),
+                'original_eta': (now + timedelta(days=18)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=18)).strftime('%Y-%m-%d'),
                 'status': 'ordered',
                 'delay_days': 0,
+                'is_demo': True,
                 'created_at': now - timedelta(hours=6),
                 'tracking_events': [],
             },
             {
+                'shipment_id': 'SHP-DEMO-010',
                 'supplier': 'Office Galaxy',
+                'carrier': 'SpotOn Logistics',
                 'origin': 'Noida, India',
+                'destination_warehouse_code': 'MUM-01',
                 'destination_warehouse_id': str(wh_ids[1]),
                 'items': make_items([('OFF-002', 400), ('OFF-003', 60), ('OFF-004', 200)]),
                 'eta': (now + timedelta(days=10)).strftime('%Y-%m-%d'),
+                'original_eta': (now + timedelta(days=10)).strftime('%Y-%m-%d'),
+                'current_eta': (now + timedelta(days=10)).strftime('%Y-%m-%d'),
                 'status': 'ordered',
                 'delay_days': 0,
+                'is_demo': True,
                 'created_at': now - timedelta(hours=2),
                 'tracking_events': [],
             },
@@ -298,10 +366,16 @@ class Command(BaseCommand):
 
         for ship_data in shipments_data:
             existing = db.shipments.find_one({
+                'shipment_id': ship_data['shipment_id'],
+            }) or db.shipments.find_one({
                 'supplier': ship_data['supplier'],
                 'eta': ship_data['eta'],
             })
-            if not existing:
+            if existing:
+                ship_data['updated_at'] = now
+                ship_data['created_by'] = 'admin@demo.com'
+                db.shipments.update_one({'_id': existing['_id']}, {'$set': ship_data})
+            else:
                 ship_data['updated_at'] = now
                 ship_data['created_by'] = 'admin@demo.com'
                 db.shipments.insert_one(ship_data)

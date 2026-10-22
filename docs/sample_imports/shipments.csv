@@ -1,0 +1,8 @@
+shipment_id,supplier,carrier,origin,destination_warehouse_code,status,original_eta,current_eta,sku,quantity
+SHP-2026-001,Schneider Electric,FedEx Freight,Chennai,MUM-01,in_transit,2026-11-01,2026-11-04,SKU-EL-001,60
+SHP-2026-001,Schneider Electric,FedEx Freight,Chennai,MUM-01,in_transit,2026-11-01,2026-11-04,SKU-EL-002,15
+SHP-2026-002,Sundram Fasteners,Delhivery Logistics,Hosur,DEL-01,ordered,2026-11-10,2026-11-10,SKU-HW-001,1000
+SHP-2026-002,Sundram Fasteners,Delhivery Logistics,Hosur,DEL-01,ordered,2026-11-10,2026-11-10,SKU-HW-002,1500
+SHP-2026-003,TotalEnergies Fluids,DHL Global Forwarding,Antwerp,BAN-01,in_transit,2026-10-25,2026-11-02,SKU-CH-001,120
+SHP-2026-004,Mondi Packaging,Blue Dart Apex,Ahmedabad,CHE-01,delivered,2026-10-12,2026-10-12,SKU-PK-001,1500
+SHP-2026-005,Ansell Protective,Gati-KWE,Bangkok,HYD-01,ordered,2026-11-18,2026-11-18,SKU-SY-001,500

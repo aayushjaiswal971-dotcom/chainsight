@@ -22,11 +22,12 @@ SYNONYMS = {
                                  'avg_daily_usage', 'average daily usage', 'usage_rate'],
     'warehouse_code':           ['warehouse_code', 'warehouse code', 'wh_code', 'wh code',
                                  'destination', 'destination_code', 'location_code'],
-    'quantity':                 ['quantity', 'qty', 'amount', 'units', 'stock', 'on_hand', 'on hand'],
+    'quantity':                 ['quantity', 'qty', 'amount', 'units', 'stock', 'on_hand', 'on hand',
+                                 'qty on hand', 'quantity on hand'],
     'shipment_id':              ['shipment_id', 'shipment id', 'shipment_no', 'shipment no',
                                  'shp_id', 'shp id', 'tracking_no', 'tracking no', 'consignment_id'],
     'supplier':                 ['supplier', 'vendor', 'vendor_name', 'supplier_name'],
-    'carrier':                  ['carrier', 'logistics', 'shipping_company', 'freight_company'],
+    'carrier':                  ['carrier', 'logistics', 'shipping_company', 'freight_company', 'carrier partner', 'transporter'],
     'origin':                   ['origin', 'source', 'from', 'origin_city', 'ship_from'],
     'destination_warehouse_code': ['destination_warehouse_code', 'destination warehouse code',
                                    'dest_warehouse', 'dest warehouse', 'destination_wh',
@@ -53,8 +54,9 @@ def auto_map(headers: list[str], target_fields: list[str]) -> dict:
     Returns {target_field: matched_header or None} for each target_field.
     Matching priority:
       1. Exact match (normalized)
-      2. Synonym match
-      3. Substring match
+      2. Synonym exact match
+      3. Synonym token match
+      4. Substring match
     """
     normalized_headers = {_normalize(h): h for h in headers}
     mapping = {}
@@ -71,8 +73,15 @@ def auto_map(headers: list[str], target_fields: list[str]) -> dict:
         if matched is None:
             synonyms = SYNONYMS.get(field, [])
             for syn in synonyms:
-                if _normalize(syn) in normalized_headers:
-                    matched = normalized_headers[_normalize(syn)]
+                norm_syn = _normalize(syn)
+                if norm_syn in normalized_headers:
+                    matched = normalized_headers[norm_syn]
+                    break
+                for nh, orig_h in normalized_headers.items():
+                    if norm_syn in nh.split():
+                        matched = orig_h
+                        break
+                if matched:
                     break
 
         # 3. Substring: header contains field name

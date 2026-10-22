@@ -152,9 +152,9 @@ def validate_inventory(rows: list[dict], db) -> tuple[list[dict], list[dict]]:
 
 
 def validate_shipments(rows: list[dict], db) -> tuple[list[dict], list[dict]]:
-    """Validate shipment rows; checks destination_warehouse_code and status enum."""
+    """Validate shipment rows with line items; checks destination_warehouse_code, sku, status, and dates."""
     valid, errors = [], []
-    seen_ids = set()
+    seen_item_keys = set()
     for i, row in enumerate(rows, start=2):
         errs = []
         shp_id = (row.get('shipment_id') or '').strip()
@@ -162,17 +162,33 @@ def validate_shipments(rows: list[dict], db) -> tuple[list[dict], list[dict]]:
         status = (row.get('status') or '').strip().lower()
         orig_eta_str = (row.get('original_eta') or '').strip()
         curr_eta_str = (row.get('current_eta') or '').strip()
+        sku = (row.get('sku') or '').strip()
+        qty_str = (row.get('quantity') or '').strip()
 
         if not shp_id:
             errs.append({'row': i, 'column': 'shipment_id', 'message': 'shipment_id is required', 'value': shp_id})
-        elif shp_id in seen_ids:
-            errs.append({'row': i, 'column': 'shipment_id', 'message': f"Duplicate shipment_id '{shp_id}' in this file", 'value': shp_id})
 
         if not dest_wh:
             errs.append({'row': i, 'column': 'destination_warehouse_code', 'message': 'destination_warehouse_code is required', 'value': dest_wh})
         elif not db.warehouses.find_one({'code': dest_wh}):
             errs.append({'row': i, 'column': 'destination_warehouse_code',
                          'message': f"warehouse_code '{dest_wh}' does not exist", 'value': dest_wh})
+
+        if sku:
+            if not db.products.find_one({'sku': sku}):
+                errs.append({'row': i, 'column': 'sku', 'message': f"SKU '{sku}' does not exist in products", 'value': sku})
+        else:
+            errs.append({'row': i, 'column': 'sku', 'message': 'sku is required for shipment line item', 'value': sku})
+
+        if qty_str:
+            try:
+                qty = int(float(qty_str))
+                if qty <= 0:
+                    errs.append({'row': i, 'column': 'quantity', 'message': 'quantity must be positive', 'value': qty_str})
+            except (ValueError, TypeError):
+                errs.append({'row': i, 'column': 'quantity', 'message': 'quantity must be an integer', 'value': qty_str})
+        else:
+            errs.append({'row': i, 'column': 'quantity', 'message': 'quantity is required for shipment line item', 'value': qty_str})
 
         if status and status not in VALID_SHIPMENT_STATUSES:
             errs.append({'row': i, 'column': 'status',
@@ -193,10 +209,16 @@ def validate_shipments(rows: list[dict], db) -> tuple[list[dict], list[dict]]:
                              'message': f"'{curr_eta_str}' is not a valid date (use YYYY-MM-DD, DD/MM/YYYY, or DD-MMM-YYYY)",
                              'value': curr_eta_str})
 
+        item_key = (shp_id, sku)
+        if shp_id and sku:
+            if item_key in seen_item_keys:
+                errs.append({'row': i, 'column': 'sku', 'message': f"Duplicate line item SKU '{sku}' for shipment '{shp_id}'", 'value': sku})
+            else:
+                seen_item_keys.add(item_key)
+
         if errs:
             errors.extend(errs)
         else:
-            seen_ids.add(shp_id)
             valid.append(row)
     return valid, errors
 
@@ -230,6 +252,25 @@ def validate_tracking_events(rows: list[dict], db) -> tuple[list[dict], list[dic
 
 # ─── Commit ──────────────────────────────────────────────────────────────────
 
+def _execute_bulk(coll, ops) -> tuple[int, int]:
+    """Execute bulk UpdateOne operations with fallback for mongomock/test environments."""
+    if not ops:
+        return 0, 0
+    try:
+        result = coll.bulk_write(ops, ordered=False)
+        return result.upserted_count, result.modified_count
+    except TypeError:
+        # Compatibility fallback when mock library does not support newer pymongo bulk arguments (e.g. sort)
+        c, u = 0, 0
+        for op in ops:
+            r = coll.update_one(op._filter, op._doc, upsert=bool(op._upsert))
+            if r.upserted_id:
+                c += 1
+            elif r.modified_count:
+                u += 1
+        return c, u
+
+
 def commit_warehouses(rows: list[dict], mode: str, job_id: str, user_email: str, db) -> dict:
     """Upsert warehouses by code. Returns {created, updated, skipped, failed}."""
     created = updated = skipped = failed = 0
@@ -260,11 +301,9 @@ def commit_warehouses(rows: list[dict], mode: str, job_id: str, user_email: str,
             upsert=True,
         ))
 
-    if ops:
-        from pymongo import UpdateOne
-        result = db.warehouses.bulk_write(ops, ordered=False)
-        created += result.upserted_count
-        updated += result.modified_count
+    c, u = _execute_bulk(db.warehouses, ops)
+    created += c
+    updated += u
     return {'created': created, 'updated': updated, 'skipped': skipped, 'failed': failed}
 
 
@@ -306,10 +345,9 @@ def commit_products(rows: list[dict], mode: str, job_id: str, user_email: str, d
             {'$set': doc, '$setOnInsert': {'created_at': now}},
             upsert=True,
         ))
-    if ops:
-        result = db.products.bulk_write(ops, ordered=False)
-        created += result.upserted_count
-        updated += result.modified_count
+    c, u = _execute_bulk(db.products, ops)
+    created += c
+    updated += u
     return {'created': created, 'updated': updated, 'skipped': skipped, 'failed': failed}
 
 
@@ -358,10 +396,9 @@ def commit_inventory(rows: list[dict], mode: str, job_id: str, user_email: str, 
             {'$set': doc, '$setOnInsert': {'created_at': now}},
             upsert=True,
         ))
-    if ops:
-        result = db.stock.bulk_write(ops, ordered=False)
-        created += result.upserted_count
-        updated += result.modified_count
+    c, u = _execute_bulk(db.stock, ops)
+    created += c
+    updated += u
     return {'created': created, 'updated': updated, 'skipped': skipped, 'failed': failed}
 
 
@@ -369,39 +406,71 @@ def commit_shipments(rows: list[dict], mode: str, job_id: str, user_email: str, 
     from pymongo import UpdateOne
     created = updated = skipped = failed = 0
     now = datetime.utcnow()
-    ops = []
+
+    # Group line items by shipment_id
+    grouped = {}
     for row in rows:
         shp_id = row['shipment_id'].strip()
+        if shp_id not in grouped:
+            grouped[shp_id] = {
+                'row': row,
+                'items': [],
+            }
+        sku = (row.get('sku') or '').strip()
+        qty_str = (row.get('quantity') or '').strip()
+        if sku:
+            product = db.products.find_one({'sku': sku})
+            product_id = str(product['_id']) if product else None
+            try:
+                qty = int(float(qty_str)) if qty_str else 0
+            except:
+                qty = 0
+            grouped[shp_id]['items'].append({
+                'product_id': product_id,
+                'sku': sku,
+                'quantity': qty,
+            })
+
+    ops = []
+    for shp_id, group in grouped.items():
+        base_row = group['row']
         existing = db.shipments.find_one({'shipment_id': shp_id})
         if existing and mode == 'add_only':
             skipped += 1
             continue
 
-        dest_wh_code = (row.get('destination_warehouse_code') or '').strip()
+        dest_wh_code = (base_row.get('destination_warehouse_code') or '').strip()
         dest_wh = db.warehouses.find_one({'code': dest_wh_code}) if dest_wh_code else None
         dest_wh_id = str(dest_wh['_id']) if dest_wh else None
 
-        orig_eta = parse_date(row.get('original_eta', ''))
-        curr_eta = parse_date(row.get('current_eta', ''))
+        orig_eta = parse_date(base_row.get('original_eta', ''))
+        curr_eta = parse_date(base_row.get('current_eta', ''))
 
-        status = (row.get('status') or 'ordered').strip().lower()
+        status = (base_row.get('status') or 'ordered').strip().lower()
         if status not in VALID_SHIPMENT_STATUSES:
             status = 'ordered'
 
+        delay_days = 0
+        if orig_eta and curr_eta:
+            delta = (curr_eta - orig_eta).days
+            if delta > 0:
+                delay_days = delta
+                if status == 'in_transit':
+                    status = 'delayed'
+
         doc = {
             'shipment_id': shp_id,
-            'supplier': (row.get('supplier') or '').strip(),
-            'carrier': (row.get('carrier') or '').strip(),
-            'origin': (row.get('origin') or '').strip(),
+            'supplier': (base_row.get('supplier') or '').strip(),
+            'carrier': (base_row.get('carrier') or '').strip(),
+            'origin': (base_row.get('origin') or '').strip(),
             'destination_warehouse_code': dest_wh_code,
             'destination_warehouse_id': dest_wh_id,
             'status': status,
-            'eta': curr_eta.isoformat() if curr_eta else None,
-            'original_eta': orig_eta.isoformat() if orig_eta else None,
-            'current_eta': curr_eta.isoformat() if curr_eta else None,
-            'delay_days': 0,
-            'items': [],
-            'tracking_events': [],
+            'eta': curr_eta.strftime('%Y-%m-%d') if curr_eta else None,
+            'original_eta': orig_eta.strftime('%Y-%m-%d') if orig_eta else None,
+            'current_eta': curr_eta.strftime('%Y-%m-%d') if curr_eta else None,
+            'delay_days': delay_days,
+            'items': group['items'],
             'is_demo': False,
             'source': 'import',
             'import_job_id': job_id,
@@ -410,13 +479,13 @@ def commit_shipments(rows: list[dict], mode: str, job_id: str, user_email: str, 
         }
         ops.append(UpdateOne(
             {'shipment_id': shp_id},
-            {'$set': doc, '$setOnInsert': {'created_at': now}},
+            {'$set': doc, '$setOnInsert': {'created_at': now, 'tracking_events': []}},
             upsert=True,
         ))
-    if ops:
-        result = db.shipments.bulk_write(ops, ordered=False)
-        created += result.upserted_count
-        updated += result.modified_count
+
+    c, u = _execute_bulk(db.shipments, ops)
+    created += c
+    updated += u
     return {'created': created, 'updated': updated, 'skipped': skipped, 'failed': failed}
 
 

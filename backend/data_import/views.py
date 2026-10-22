@@ -55,12 +55,13 @@ ENTITY_CONFIG = {
     },
     'shipments': {
         'label': 'Shipments',
-        'required_fields': ['shipment_id', 'supplier', 'destination_warehouse_code'],
+        'required_fields': ['shipment_id', 'destination_warehouse_code', 'sku', 'quantity'],
         'all_fields': ['shipment_id', 'supplier', 'carrier', 'origin', 'destination_warehouse_code',
-                       'status', 'original_eta', 'current_eta'],
+                       'status', 'original_eta', 'current_eta', 'sku', 'quantity'],
         'example_rows': [
-            ['SHP-2026-001', 'Acme Supplies Ltd', 'FedEx', 'Chennai', 'MUM-01', 'in_transit', '2026-11-01', '2026-11-03'],
-            ['SHP-2026-002', 'Global Parts Co', 'DHL', 'Pune', 'DEL-01', 'ordered', '2026-11-15', '2026-11-15'],
+            ['SHP-2026-001', 'Acme Supplies Ltd', 'FedEx', 'Chennai', 'MUM-01', 'in_transit', '2026-11-01', '2026-11-03', 'SKU-EL-001', '50'],
+            ['SHP-2026-001', 'Acme Supplies Ltd', 'FedEx', 'Chennai', 'MUM-01', 'in_transit', '2026-11-01', '2026-11-03', 'SKU-HW-001', '100'],
+            ['SHP-2026-002', 'Global Parts Co', 'DHL', 'Pune', 'DEL-01', 'ordered', '2026-11-15', '2026-11-15', 'SKU-PK-001', '500'],
         ],
     },
     'tracking_events': {
@@ -106,11 +107,29 @@ def _require_import_role(user) -> bool:
     return getattr(user, 'role', None) in ('admin', 'manager')
 
 
+from rest_framework.renderers import BaseRenderer, JSONRenderer
+
+
+class CSVRenderer(BaseRenderer):
+    media_type = 'text/csv'
+    format = 'csv'
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return data
+
+
+class XLSXRenderer(BaseRenderer):
+    media_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    format = 'xlsx'
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return data
+
+
 # ─── Template Download ────────────────────────────────────────────────────────
 
 class TemplateDownloadView(APIView):
     """GET /api/import/templates/{entity}?format=csv|xlsx"""
     permission_classes = [IsAuthenticated]
+    renderer_classes = [CSVRenderer, XLSXRenderer, JSONRenderer]
 
     def get(self, request, entity):
         if entity not in ENTITY_CONFIG:
@@ -368,6 +387,7 @@ class ImportCommitView(APIView):
             'error_count': len(error_rows),
             'job_id': job_id,
             'history_id': history_id,
+            'error_report_url': f'/api/import/jobs/{job_id}/errors',
         })
 
 
@@ -391,6 +411,7 @@ class ImportJobListView(APIView):
 class ImportJobErrorsView(APIView):
     """GET /api/import/jobs/{id}/errors — download error report as CSV."""
     permission_classes = [IsAuthenticated]
+    renderer_classes = [CSVRenderer, JSONRenderer]
 
     def get(self, request, job_id):
         db = get_db()

@@ -1,0 +1,7 @@
+shipment_id,supplier,carrier,origin,destination_warehouse_code,status,original_eta,current_eta,sku,quantity
+SHP-ERR-001,Faulty Supplies Inc,SpeedEx,Noida,MUM-01,in_transit,99/99/2026,2026-11-05,SKU-EL-001,50
+SHP-ERR-002,Phantom Logistics,AirCargo,Delhi,WH-NONEXISTENT-999,ordered,2026-11-01,2026-11-01,SKU-EL-001,20
+SHP-ERR-003,Bad Stock Co,RoadRail,Kolkata,DEL-01,in_transit,2026-11-04,2026-11-06,SKU-HW-001,-250
+SHP-ERR-004,Missing Item Ltd,ExpressLine,Pune,DEL-01,in_transit,2026-11-02,2026-11-03,SKU-GHOST-404,100
+SHP-ERR-005,Unknown Status Corp,FastTrack,Jaipur,MUM-01,lost_in_triangle,2026-11-10,2026-11-12,SKU-EL-002,10
+SHP-ERR-006,=1+1,Carrier Safe,Chennai,MUM-01,ordered,2026-11-15,2026-11-15,SKU-EL-001,25

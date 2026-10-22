@@ -1,0 +1,7 @@
+shipment_id,timestamp,location,status,note
+SHP-2026-001,2026-10-28 08:30:00,Chennai Port Gate 4,in_transit,Container loaded on truck
+SHP-2026-001,2026-10-30 14:15:00,Pune Toll Plaza,in_transit,Passing intermediate checkpoint
+SHP-2026-003,2026-10-24 11:00:00,Antwerp Maritime Terminal,in_transit,Vessel departed
+SHP-2026-003,2026-10-29 16:45:00,JNPT Navi Mumbai,delayed,Customs clearance inspection backlog
+SHP-2026-004,2026-10-10 09:00:00,Ahmedabad DC,in_transit,Dispatched on linehaul
+SHP-2026-004,2026-10-12 17:30:00,Chennai Port Hub,delivered,Delivered and signed off at dock 2
